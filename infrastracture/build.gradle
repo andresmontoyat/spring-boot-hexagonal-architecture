@@ -39,4 +39,5 @@ dependencies {
     implementation project(':domain:repository')
 
     runtime 'org.springframework.boot:spring-boot-devtools'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

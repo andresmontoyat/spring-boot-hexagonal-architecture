@@ -1,6 +1,7 @@
-
 plugins {
     id 'io.spring.dependency-management' version '1.0.10.RELEASE'
+    id 'org.sonarqube' version '2.7'
+    id 'jacoco'
     id 'java'
 }
 
@@ -16,6 +17,7 @@ allprojects {
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'jacoco'
     apply plugin: 'io.spring.dependency-management'
 
     dependencies {
@@ -31,8 +33,7 @@ subprojects {
         annotationProcessor 'org.projectlombok:lombok:1.18.10'
         annotationProcessor 'org.mapstruct:mapstruct-processor:1.3.1.Final'
 
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-        testAnnotationProcessor 'org.projectlombok:lombok:1.18.10'
+        testImplementation 'org.junit.jupiter:junit-jupiter-engine'
         testAnnotationProcessor 'org.mapstruct:mapstruct-processor:1.3.1.Final'
     }
 
@@ -41,4 +42,44 @@ subprojects {
             mavenBom("org.springframework.boot:spring-boot-dependencies:${spring_boot_version}")
         }
     }
+
+    sonarqube {
+        properties {
+            property 'sonar.sources', 'src/main/java'
+            property 'sonar.exclusions', '**/*Test*/**'
+        }
+    }
+
+    test {
+        ignoreFailures = true
+        jacoco {
+            //append = false
+            destinationFile = file("$buildDir/jacoco/jacocoTest.exec")
+            classDumpDir = file("$buildDir/jacoco/classpathdumps")
+        }
+    }
+
+    jacocoTestReport {
+        reports {
+            xml.enabled true
+            csv.enabled false
+            html.destination file("${buildDir}/jacocoHtml")
+        }
+    }
+
+    jacocoTestCoverageVerification {
+        violationRules {
+            rule {
+                limit {
+                    minimum = 0.7
+                }
+            }
+        }
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    check.dependsOn jacocoTestReport
 }

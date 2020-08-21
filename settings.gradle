@@ -1,0 +1,9 @@
+rootProject.name = 'ddd-hexagonal-architecture'
+
+include ':domain:repository'
+include ':domain:service'
+include ':application:api'
+include ':infrastracture'
+include 'domain:model'
+findProject(':domain:model')?.name = 'model'
+

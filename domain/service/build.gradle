@@ -1,0 +1,10 @@
+plugins {
+    id 'java'
+}
+
+jar.enabled = true
+
+dependencies {
+    implementation project(':domain:repository')
+    implementation project(':domain:model')
+}

@@ -1,0 +1,42 @@
+buildscript {
+    dependencies {
+        classpath("com.google.cloud.tools:appengine-gradle-plugin:2.3.0")
+    }
+}
+
+plugins {
+    id "org.springframework.boot" version "${spring_boot_version}"
+}
+
+apply plugin: 'com.google.cloud.tools.appengine'
+
+bootJar {
+    from('src/main/resources/.ebextensions') {
+        into('.ebextensions')
+    }
+    enabled = true
+}
+
+configurations {
+    [apiElements, runtimeElements].each {
+        it.outgoing.artifacts.removeIf {
+            it.buildDependencies.getDependencies(null).contains(jar) }
+        it.outgoing.artifact(bootJar)
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-configuration-processor'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'io.springfox:springfox-swagger2:2.9.2'
+    implementation 'io.springfox:springfox-swagger-ui:2.9.2'
+
+    implementation project(':application:api')
+    implementation project(':domain:service')
+    implementation project(':domain:repository')
+
+    runtime 'org.springframework.boot:spring-boot-devtools'
+}

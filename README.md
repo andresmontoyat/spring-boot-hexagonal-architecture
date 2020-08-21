@@ -1,1 +1,1 @@
-# ddd-hexagonal-architecture
+# spring-boot-hexagonal-architecture

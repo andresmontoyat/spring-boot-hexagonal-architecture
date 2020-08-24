@@ -1,4 +1,4 @@
-package my.packagename.repository.domain;
+package my.packagename.domain;
 
 import lombok.Data;
 

@@ -1,6 +1,6 @@
 package my.packagename.service;
 
-import my.packagename.model.CustomDTO;
+import my.packagename.dto.CustomDTO;
 
 public interface CustomService {
 

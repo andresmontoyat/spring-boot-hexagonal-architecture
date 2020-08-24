@@ -1,8 +1,9 @@
 rootProject.name = 'spring-boot-hexagonal-architecture'
 
-include ':domain:repository'
-include ':domain:service'
 include ':application:api'
-include ':infrastracture'
-include ':domain:model'
+include ':domain:domain'
+include ':domain:service'
+include ':infrastracture:repository'
+include ':infrastracture:boot'
+include ':infrastracture:dto'
 

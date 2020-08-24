@@ -1,7 +1,7 @@
-package my.packagename.repository;
+package my.packagename.infrastracture.repository;
 
 import lombok.extern.slf4j.Slf4j;
-import my.packagename.repository.domain.CustomEntity;
+import my.packagename.domain.CustomEntity;
 import org.springframework.stereotype.Repository;
 
 @Slf4j

@@ -5,5 +5,5 @@ plugins {
 jar.enabled = true
 
 dependencies {
-    implementation project(':domain:repository')
+    implementation project(':domain:domain')
 }

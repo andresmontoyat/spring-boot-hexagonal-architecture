@@ -5,7 +5,5 @@ plugins {
 jar.enabled = true
 
 dependencies {
-    implementation project(':domain:domain')
-    implementation project(':infrastracture:dto')
-    implementation project(':infrastracture:repository')
+    implementation project(':domain:model')
 }

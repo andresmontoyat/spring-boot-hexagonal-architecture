@@ -79,7 +79,7 @@ subprojects {
         violationRules {
             rule {
                 limit {
-                    minimum = 0.7
+                    minimum = 0.0
                 }
             }
         }
@@ -89,5 +89,6 @@ subprojects {
         options.encoding = 'UTF-8'
     }
 
-    test.finalizedBy jacocoTestReport
+    // test.finalizedBy jacocoTestReport
+    check.dependsOn jacocoTestCoverageVerification
 }

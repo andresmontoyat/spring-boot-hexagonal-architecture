@@ -1,0 +1,16 @@
+plugins {
+    id 'java'
+}
+
+jar.enabled = true
+
+dependencies {
+    implementation 'org.hibernate:hibernate-core'
+    implementation 'org.hibernate:hibernate-entitymanager'
+    implementation 'org.springframework.data:spring-data-commons'
+    implementation 'org.springframework.data:spring-data-jpa'
+
+    implementation project(':domain:model')
+    implementation project(':infrastructure:repository')
+    implementation project(':commons')
+}

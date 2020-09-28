@@ -6,15 +6,16 @@ import my.packagename.application.rest.api.model.CustomModelMapper;
 import my.packagename.application.rest.api.model.request.CustomCreateRequest;
 import my.packagename.application.rest.api.model.request.CustomUpdateRequest;
 import my.packagename.application.rest.api.model.response.CustomResponse;
-import my.packagename.application.rest.handler.ApiMessage;
 import my.packagename.application.rest.handler.ex.RestException;
 import my.packagename.domain.service.CustomService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+/* This is a RestController */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/operations")
@@ -28,31 +29,22 @@ public class CustomRestControllerImpl implements CustomRestController {
 
     @GetMapping
     @Override
-    public ResponseEntity<ApiMessage> findAll() {
-        ApiMessage message = ApiMessage.builder()
-                .code("00x1")
-                .message("Message")
-                .data(mapper.toCustomResponses(customService.findAll()))
-                .build();
-        return ResponseEntity.ok(message);
+    public ResponseEntity findAll() {
+        return ResponseEntity.ok(mapper.toCustomResponses(customService.findAll()));
     }
 
     @GetMapping("/{id}")
     @Override
-    public ResponseEntity<ApiMessage> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiMessage.builder()
-                .code("00x1")
-                .message("Message")
-                .data(mapper.toCustomResponse(customService.findById(id)))
-                .build());
+    public ResponseEntity findById(@PathVariable Long id) {
+        return ResponseEntity.ok(mapper.toCustomResponse(customService.findById(id)));
     }
 
     @PostMapping
     @Override
-    public ResponseEntity<ApiMessage> save(CustomCreateRequest customCreateRequest, BindingResult result) {
+    public ResponseEntity save(@Validated CustomCreateRequest customCreateRequest, BindingResult result) {
         if (result.hasErrors()) {
             CustomResponse customResponse = mapper.toCustomResponse(customService.save(mapper.toCustom(customCreateRequest)));
-            return ResponseEntity.ok(ApiMessage.builder().status(HttpStatus.CREATED).data(customResponse).build());
+            return ResponseEntity.ok(customResponse);
         }
 
         throw new RestException("Error bean validation", HttpStatus.UNPROCESSABLE_ENTITY);
@@ -60,11 +52,11 @@ public class CustomRestControllerImpl implements CustomRestController {
 
     @PutMapping("/{id}")
     @Override
-    public ResponseEntity<ApiMessage> update(@PathVariable Long id, CustomUpdateRequest customUpdateRequest, BindingResult result) {
+    public ResponseEntity update(@PathVariable Long id, CustomUpdateRequest customUpdateRequest, BindingResult result) {
         if(customService.exist(id)) {
             if (result.hasErrors()) {
                 CustomResponse customResponse = mapper.toCustomResponse(customService.update(mapper.toCustom(id, customUpdateRequest)));
-                return ResponseEntity.ok(ApiMessage.builder().data(customResponse).build());
+                return ResponseEntity.ok(customResponse);
             }
             throw new RestException("Error bean validation", HttpStatus.UNPROCESSABLE_ENTITY);
         }
@@ -76,7 +68,7 @@ public class CustomRestControllerImpl implements CustomRestController {
     public ResponseEntity delete(@PathVariable Long id) {
         if(customService.exist(id)) {
             customService.delete(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.noContent().build();
         }
         throw new RestException("Error not found", HttpStatus.NOT_FOUND);
     }

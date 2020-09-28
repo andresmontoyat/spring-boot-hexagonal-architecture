@@ -13,7 +13,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 @MappedSuperclass
-public abstract class Entities<ID> implements Serializable, Persistable<ID> {
+public abstract class Entities<ID extends Serializable> implements Persistable<ID> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

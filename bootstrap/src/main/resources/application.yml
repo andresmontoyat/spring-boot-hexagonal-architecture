@@ -105,6 +105,24 @@ logging:
     format:
       console: ${LOG_STRUCTURED_FORMAT_CONSOLE:}
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      valkey:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${RESILIENCE4J_VALKEY_WINDOW:20}
+        minimum-number-of-calls: ${RESILIENCE4J_VALKEY_MIN_CALLS:10}
+        failure-rate-threshold: ${RESILIENCE4J_VALKEY_FAILURE_RATE:50}
+        # Slow Valkey hurts as much as dead Valkey: count calls near the command timeout as failures.
+        slow-call-duration-threshold: ${RESILIENCE4J_VALKEY_SLOW_CALL:150ms}
+        slow-call-rate-threshold: ${RESILIENCE4J_VALKEY_SLOW_RATE:80}
+        # While open, every read goes straight to PostgreSQL; probe again after this long.
+        wait-duration-in-open-state: ${RESILIENCE4J_VALKEY_OPEN_WAIT:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        # Out of readiness on purpose: the cache is fail-open (resilience.md §8).
+        register-health-indicator: false
+
 cache:
   custom:
     # Upper bound on staleness if an eviction is ever lost (writes evict before and after commit).

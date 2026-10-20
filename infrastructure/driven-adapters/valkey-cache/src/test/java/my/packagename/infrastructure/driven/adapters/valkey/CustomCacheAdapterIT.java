@@ -3,6 +3,7 @@ package my.packagename.infrastructure.driven.adapters.valkey;
 import static my.packagename.application.fake.CustomFixtures.FIXED_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
@@ -38,7 +39,9 @@ class CustomCacheAdapterIT {
     redis.delete(PROPERTIES.keyPrefix() + FIXED_ID);
     database = new InMemoryCustomRepository();
     registry = new SimpleMeterRegistry();
-    cache = new CustomCacheAdapter(redis, JsonMapper.builder().build(), PROPERTIES, registry);
+    ResilientValkey valkey =
+        new ResilientValkey(redis, CircuitBreaker.ofDefaults(ResilientValkey.BREAKER), registry);
+    cache = new CustomCacheAdapter(valkey, JsonMapper.builder().build(), PROPERTIES, registry);
     cache.setDelegate(database);
     database.insert(Custom.create(FIXED_ID, new CustomName("Demo")));
   }

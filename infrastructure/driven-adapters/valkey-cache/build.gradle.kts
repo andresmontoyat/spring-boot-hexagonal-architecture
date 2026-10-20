@@ -8,6 +8,7 @@ dependencies {
     implementation("org.springframework:spring-tx")
     implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("io.micrometer:micrometer-core")
+    implementation("io.github.resilience4j:resilience4j-circuitbreaker:${property("resilience4j.version")}")
 
     testImplementation(testFixtures(project(":application")))
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-test")

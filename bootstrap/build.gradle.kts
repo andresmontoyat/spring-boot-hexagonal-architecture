@@ -15,6 +15,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     // OTLP export of metrics (micrometer-registry-otlp) and traces (Micrometer → OpenTelemetry bridge).
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // Circuit breaker registries from YAML, with Micrometer meters and health indicators.
+    implementation("io.github.resilience4j:resilience4j-spring-boot4:${property("resilience4j.version")}")
 
     "developmentOnly"("org.springframework.boot:spring-boot-docker-compose")
 

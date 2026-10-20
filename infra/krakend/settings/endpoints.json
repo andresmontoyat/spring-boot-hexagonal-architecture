@@ -1,0 +1,11 @@
+{
+  "readers": ["platform-reader", "platform-writer"],
+  "writers": ["platform-writer"],
+  "list": [
+    { "path": "/api/v1/customs", "method": "GET", "access": "read", "query": ["page", "size"] },
+    { "path": "/api/v1/customs", "method": "POST", "access": "write", "query": [] },
+    { "path": "/api/v1/customs/{id}", "method": "GET", "access": "read", "query": [] },
+    { "path": "/api/v1/customs/{id}", "method": "PUT", "access": "write", "query": [] },
+    { "path": "/api/v1/customs/{id}", "method": "DELETE", "access": "write", "query": [] }
+  ]
+}

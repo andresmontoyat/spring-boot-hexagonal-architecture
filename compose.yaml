@@ -1,3 +1,7 @@
+# Local stack. `./gradlew :bootstrap:bootRun` starts it through spring-boot-docker-compose;
+# the service itself runs on the host (port 8080) and KrakenD reaches it via host.docker.internal.
+#
+# Secrets below are obvious lab defaults (application-yml.md R7); override them in a .env file.
 services:
   postgres:
     image: postgres:17-alpine
@@ -6,4 +10,62 @@ services:
       POSTGRES_USER: customs
       POSTGRES_PASSWORD: customs
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      # Change with VALKEY_PORT (and SPRING_DATA_REDIS_PORT) if 6379 is taken locally.
+      - "${VALKEY_PORT:-6379}:6379"
+
+  kafka:
+    image: apache/kafka:3.9.1
+    ports:
+      - "9092:9092"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    command: ["start-dev", "--import-realm", "--http-port=8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Tokens always carry iss=http://localhost:8180/realms/customs, whoever asks; the gateway
+      # and the service validate against that, while fetching JWKS over the backchannel.
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      CUSTOMS_WRITER_BOT_SECRET: ${CUSTOMS_WRITER_BOT_SECRET:-local-writer-secret}
+      CUSTOMS_READER_BOT_SECRET: ${CUSTOMS_READER_BOT_SECRET:-local-reader-secret}
+      CUSTOMS_DEMO_USER_PASSWORD: ${CUSTOMS_DEMO_USER_PASSWORD:-local-demo-password}
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8180:8080"
+
+  gateway:
+    image: krakend:2.13.11
+    command: ["run", "-c", "/etc/krakend/krakend.tmpl"]
+    environment:
+      FC_ENABLE: "1"
+      FC_SETTINGS: /etc/krakend/settings
+      CUSTOMS_HOST: ${CUSTOMS_HOST:-http://host.docker.internal:8080}
+      KEYCLOAK_ISSUER: http://localhost:8180/realms/customs
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/customs/protocol/openid-connect/certs
+      # Local Keycloak speaks plain HTTP. Never set this where Keycloak has TLS.
+      KRAKEND_JWK_INSECURE: "true"
+      OTEL_EXPORTER_OTLP_HOST: otel-lgtm
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./infra/krakend:/etc/krakend:ro
+    ports:
+      - "8000:8080"
+    depends_on:
+      - keycloak
+
+  # OpenTelemetry collector + Prometheus + Tempo + Loki + Grafana in one image (Grafana on :3001).
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.36.0
+    ports:
+      - "3001:3000"
+      - "4317:4317"
+      - "4318:4318"

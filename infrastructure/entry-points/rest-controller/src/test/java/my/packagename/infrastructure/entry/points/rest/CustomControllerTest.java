@@ -29,13 +29,13 @@ class CustomControllerTest {
   @Autowired private MockMvcTester mvc;
 
   @Test
-  void should_return_201_with_location_when_custom_is_created() {
+  void should_return_201_with_relative_location_when_custom_is_created() {
     MvcTestResult result = post(BASE, "{\"name\":\"Fresh\"}");
 
+    // Relative reference: resolves against whatever URL the client used (gateway or direct),
+    // so internal hosts and context paths never leak through the gateway.
     assertThat(result).hasStatus(HttpStatus.CREATED);
-    assertThat(result)
-        .headers()
-        .hasValue(HttpHeaders.LOCATION, "http://localhost" + BASE + "/" + NEW_ID);
+    assertThat(result).headers().hasValue(HttpHeaders.LOCATION, "customs/" + NEW_ID);
     assertThat(result).bodyJson().extractingPath("$.name").isEqualTo("Fresh");
   }
 

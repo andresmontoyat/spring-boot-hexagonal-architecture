@@ -1,0 +1,9 @@
+{
+  "alg": "RS256",
+  "jwk_url": "http://keycloak:8080/realms/customs/protocol/openid-connect/certs",
+  "issuer": "http://localhost:8180/realms/customs",
+  "audience": ["customs-api"],
+  "roles_key": "resource_access.customs-api.roles",
+  "cache": true,
+  "cache_duration": 900
+}

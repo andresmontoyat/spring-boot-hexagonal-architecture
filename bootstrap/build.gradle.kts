@@ -42,6 +42,12 @@ sourceSets.named("test") {
     resources.srcDir(rootProject.file("infra/keycloak"))
 }
 
+tasks.named<Test>("test") {
+    // The gateway test mounts the same KrakenD config that compose runs.
+    systemProperty("krakend.config.dir", rootProject.file("infra/krakend").absolutePath)
+    inputs.dir(rootProject.file("infra/krakend"))
+}
+
 tasks.named<BootJar>("bootJar") {
     archiveFileName = "${rootProject.name}.jar"
 }

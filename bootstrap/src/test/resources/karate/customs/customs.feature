@@ -30,7 +30,7 @@ Feature: Manage customs through the public REST API
     When method post
     Then status 201
     And match response == { id: '#uuid', name: 'Demo', version: 0 }
-    And match responseHeaders['Location'][0] == '#regex .*/api/v1/customs/' + response.id
+    And match responseHeaders['Location'][0] == 'customs/' + response.id
     * def id = response.id
 
     Given url baseUrl

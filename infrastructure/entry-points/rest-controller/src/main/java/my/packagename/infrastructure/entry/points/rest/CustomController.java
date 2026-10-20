@@ -31,7 +31,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @Tag(name = "Customs")
 @RestController
@@ -99,10 +98,11 @@ public class CustomController {
     deleteCustom.execute(new CustomId(id));
   }
 
+  /**
+   * Relative to the request's last segment ({@code .../customs}), so it resolves correctly for the
+   * gateway path and the direct path alike without trusting X-Forwarded-* headers.
+   */
   private static URI locationOf(CustomResponse created) {
-    return ServletUriComponentsBuilder.fromCurrentRequest()
-        .path("/{id}")
-        .buildAndExpand(created.id())
-        .toUri();
+    return URI.create("customs/" + created.id());
   }
 }

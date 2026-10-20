@@ -15,8 +15,9 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:customs}
     password: ${SPRING_DATASOURCE_PASSWORD:customs}
     hikari:
-      # Fail fast when the pool is exhausted instead of queueing requests for 30s (resilience R1).
-      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:3s}
+      # Milliseconds (Hikari binds a long, not a Duration). Fail fast when the pool is exhausted
+      # instead of queueing requests for the 30s default (resilience R1).
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:3000}
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}

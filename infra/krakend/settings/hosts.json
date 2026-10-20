@@ -1,0 +1,4 @@
+{
+  "customs": "http://host.docker.internal:8080",
+  "customs_context_path": "/custom-service"
+}

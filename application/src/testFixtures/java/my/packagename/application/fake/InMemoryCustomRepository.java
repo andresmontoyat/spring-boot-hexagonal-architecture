@@ -16,6 +16,12 @@ import my.packagename.domain.model.CustomId;
 public final class InMemoryCustomRepository implements CustomRepositoryPort {
 
   private final Map<CustomId, Custom> store = new LinkedHashMap<>();
+  private int findByIdCalls;
+
+  /** Lets decorator tests (e.g. cache) prove whether a read reached the store. */
+  public int findByIdCalls() {
+    return findByIdCalls;
+  }
 
   @Override
   public Custom insert(Custom custom) {
@@ -36,6 +42,7 @@ public final class InMemoryCustomRepository implements CustomRepositoryPort {
 
   @Override
   public Optional<Custom> findById(CustomId id) {
+    findByIdCalls++;
     return Optional.ofNullable(store.get(id));
   }
 

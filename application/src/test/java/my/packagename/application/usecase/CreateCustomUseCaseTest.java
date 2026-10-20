@@ -5,7 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import my.packagename.application.command.CreateCustomCommand;
+import my.packagename.application.event.CustomCreated;
+import my.packagename.application.event.CustomEventOutbox;
 import my.packagename.application.fake.InMemoryCustomRepository;
+import my.packagename.application.fake.OutboxFixtures;
+import my.packagename.application.fake.RecordingOutboxWriter;
 import my.packagename.application.fake.RecordingTransaction;
 import my.packagename.domain.exception.InvalidCustomNameException;
 import my.packagename.domain.model.Custom;
@@ -19,13 +23,16 @@ class CreateCustomUseCaseTest {
 
   private InMemoryCustomRepository repository;
   private RecordingTransaction<Custom> transaction;
+  private RecordingOutboxWriter outbox;
   private CreateCustomUseCase useCase;
 
   @BeforeEach
   void setUp() {
     repository = new InMemoryCustomRepository();
     transaction = new RecordingTransaction<>();
-    useCase = new CreateCustomUseCase(transaction, repository, () -> FIXED_ID);
+    outbox = new RecordingOutboxWriter(transaction::isOpen);
+    CustomEventOutbox events = new CustomEventOutbox(outbox, OutboxFixtures.eventFactory());
+    useCase = new CreateCustomUseCase(transaction, repository, () -> FIXED_ID, events);
   }
 
   @Test
@@ -40,19 +47,31 @@ class CreateCustomUseCaseTest {
   }
 
   @Test
-  void should_run_inside_one_transaction_when_creating() {
+  void should_enqueue_created_event_inside_the_same_transaction() {
     // When
     useCase.execute(new CreateCustomCommand("Demo"));
 
     // Then
     assertThat(transaction.boundaries()).isOne();
+    assertThat(outbox.saved())
+        .singleElement()
+        .satisfies(
+            saved -> {
+              assertThat(saved.insideTransaction()).isTrue();
+              assertThat(saved.message().topic()).isEqualTo(CustomEventOutbox.TOPIC);
+              assertThat(saved.message().key()).isEqualTo(FIXED_ID.toString());
+              assertThat(saved.event().body().eventName()).isEqualTo("CustomCreated");
+              assertThat(saved.event().body().payload())
+                  .isEqualTo(new CustomCreated(FIXED_ID.value(), "Demo"));
+            });
   }
 
   @Test
-  void should_not_persist_when_name_is_invalid() {
+  void should_neither_persist_nor_publish_when_name_is_invalid() {
     // When / Then
     assertThatThrownBy(() -> useCase.execute(new CreateCustomCommand(" ")))
         .isInstanceOf(InvalidCustomNameException.class);
     assertThat(repository.findById(FIXED_ID)).isEmpty();
+    assertThat(outbox.saved()).isEmpty();
   }
 }

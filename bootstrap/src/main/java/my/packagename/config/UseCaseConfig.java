@@ -1,6 +1,9 @@
 package my.packagename.config;
 
+import io.codehunters.messaging.OutboxWriter;
+import io.codehunters.messaging.factory.OutboxEventFactory;
 import java.util.UUID;
+import my.packagename.application.event.CustomEventOutbox;
 import my.packagename.application.port.ChainablePort;
 import my.packagename.application.port.inbound.CreateCustomPort;
 import my.packagename.application.port.inbound.DeleteCustomPort;
@@ -36,6 +39,12 @@ public class UseCaseConfig {
     return () -> new CustomId(UUID.randomUUID());
   }
 
+  /** OutboxWriter and OutboxEventFactory come from the outbox SDK auto-configuration. */
+  @Bean
+  CustomEventOutbox customEventOutbox(OutboxWriter writer, OutboxEventFactory factory) {
+    return new CustomEventOutbox(writer, factory);
+  }
+
   @Bean
   @Primary
   CustomRepositoryPort customRepositoryPort(
@@ -50,9 +59,10 @@ public class UseCaseConfig {
       TransactionPort<Custom> transaction,
       CustomRepositoryPort repository,
       CustomIdGeneratorPort idGenerator,
+      CustomEventOutbox events,
       ObjectProvider<ChainablePort<CreateCustomPort>> decorators) {
     return PortChain.link(
-        new CreateCustomUseCase(transaction, repository, idGenerator),
+        new CreateCustomUseCase(transaction, repository, idGenerator, events),
         decorators.stream().toList());
   }
 
@@ -75,15 +85,20 @@ public class UseCaseConfig {
   RenameCustomPort renameCustomPort(
       TransactionPort<Custom> transaction,
       CustomRepositoryPort repository,
+      CustomEventOutbox events,
       ObjectProvider<ChainablePort<RenameCustomPort>> decorators) {
     return PortChain.link(
-        new RenameCustomUseCase(transaction, repository), decorators.stream().toList());
+        new RenameCustomUseCase(transaction, repository, events), decorators.stream().toList());
   }
 
   @Bean
   @Primary
   DeleteCustomPort deleteCustomPort(
-      CustomRepositoryPort repository, ObjectProvider<ChainablePort<DeleteCustomPort>> decorators) {
-    return PortChain.link(new DeleteCustomUseCase(repository), decorators.stream().toList());
+      TransactionPort<Boolean> transaction,
+      CustomRepositoryPort repository,
+      CustomEventOutbox events,
+      ObjectProvider<ChainablePort<DeleteCustomPort>> decorators) {
+    return PortChain.link(
+        new DeleteCustomUseCase(transaction, repository, events), decorators.stream().toList());
   }
 }

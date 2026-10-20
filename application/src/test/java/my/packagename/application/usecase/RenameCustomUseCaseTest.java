@@ -6,7 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import my.packagename.application.command.RenameCustomCommand;
+import my.packagename.application.event.CustomEventOutbox;
+import my.packagename.application.event.CustomRenamed;
 import my.packagename.application.fake.InMemoryCustomRepository;
+import my.packagename.application.fake.OutboxFixtures;
+import my.packagename.application.fake.RecordingOutboxWriter;
 import my.packagename.application.fake.RecordingTransaction;
 import my.packagename.domain.exception.CustomNotFoundException;
 import my.packagename.domain.model.Custom;
@@ -21,13 +25,16 @@ class RenameCustomUseCaseTest {
 
   private InMemoryCustomRepository repository;
   private RecordingTransaction<Custom> transaction;
+  private RecordingOutboxWriter outbox;
   private RenameCustomUseCase useCase;
 
   @BeforeEach
   void setUp() {
     repository = new InMemoryCustomRepository();
     transaction = new RecordingTransaction<>();
-    useCase = new RenameCustomUseCase(transaction, repository);
+    outbox = new RecordingOutboxWriter(transaction::isOpen);
+    CustomEventOutbox events = new CustomEventOutbox(outbox, OutboxFixtures.eventFactory());
+    useCase = new RenameCustomUseCase(transaction, repository, events);
   }
 
   @Test
@@ -45,8 +52,29 @@ class RenameCustomUseCaseTest {
   }
 
   @Test
-  void should_fail_with_not_found_when_custom_does_not_exist() {
+  void should_enqueue_renamed_event_with_new_version_inside_the_transaction() {
+    // Given
+    repository.insert(Custom.create(FIXED_ID, new CustomName("Demo")));
+
+    // When
+    useCase.execute(new RenameCustomCommand(FIXED_ID, "Renamed"));
+
+    // Then
+    assertThat(outbox.saved())
+        .singleElement()
+        .satisfies(
+            saved -> {
+              assertThat(saved.insideTransaction()).isTrue();
+              assertThat(saved.message().key()).isEqualTo(FIXED_ID.toString());
+              assertThat(saved.event().body().payload())
+                  .isEqualTo(new CustomRenamed(FIXED_ID.value(), "Renamed", 1L));
+            });
+  }
+
+  @Test
+  void should_fail_without_publishing_when_custom_does_not_exist() {
     assertThatThrownBy(() -> useCase.execute(new RenameCustomCommand(UNKNOWN_ID, "Renamed")))
         .isInstanceOf(CustomNotFoundException.class);
+    assertThat(outbox.saved()).isEmpty();
   }
 }

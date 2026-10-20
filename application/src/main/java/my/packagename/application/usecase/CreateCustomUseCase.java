@@ -1,6 +1,7 @@
 package my.packagename.application.usecase;
 
 import my.packagename.application.command.CreateCustomCommand;
+import my.packagename.application.event.CustomEventOutbox;
 import my.packagename.application.mapper.CommandMapper;
 import my.packagename.application.port.inbound.CreateCustomPort;
 import my.packagename.application.port.outbound.CustomIdGeneratorPort;
@@ -13,19 +14,27 @@ public final class CreateCustomUseCase implements CreateCustomPort {
   private final TransactionPort<Custom> transaction;
   private final CustomRepositoryPort repository;
   private final CustomIdGeneratorPort idGenerator;
+  private final CustomEventOutbox events;
 
   public CreateCustomUseCase(
       TransactionPort<Custom> transaction,
       CustomRepositoryPort repository,
-      CustomIdGeneratorPort idGenerator) {
+      CustomIdGeneratorPort idGenerator,
+      CustomEventOutbox events) {
     this.transaction = transaction;
     this.repository = repository;
     this.idGenerator = idGenerator;
+    this.events = events;
   }
 
   @Override
   public Custom execute(CreateCustomCommand command) {
     Custom custom = CommandMapper.toCustom(command, idGenerator.next());
-    return transaction.run(() -> repository.insert(custom));
+    return transaction.run(
+        () -> {
+          Custom created = repository.insert(custom);
+          events.created(created);
+          return created;
+        });
   }
 }

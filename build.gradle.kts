@@ -13,6 +13,16 @@ allprojects {
 
     repositories {
         mavenCentral()
+        // Codehunters SDK (outbox). Restricted to its group so no other artifact can be served from it.
+        maven {
+            name = "CodehuntersSdk"
+            url = uri(property("codehunters.sdk.repository.url") as String)
+            credentials {
+                username = System.getenv("GH_PACKAGES_USERNAME") ?: findProperty("GH_PACKAGES_USERNAME") as String?
+                password = System.getenv("GH_PACKAGES_TOKEN") ?: findProperty("GH_PACKAGES_TOKEN") as String?
+            }
+            content { includeGroup("io.codehunters") }
+        }
     }
 }
 

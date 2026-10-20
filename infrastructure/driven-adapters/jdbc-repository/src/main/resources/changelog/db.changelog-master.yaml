@@ -2,3 +2,5 @@
 databaseChangeLog:
   - include:
       file: changelog/changes/20261020120000-create-custom-table.sql
+  - include:
+      file: changelog/changes/20261020150000-create-outbox-tables.sql

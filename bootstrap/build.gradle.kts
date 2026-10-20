@@ -15,6 +15,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     // OTLP export of metrics (micrometer-registry-otlp) and traces (Micrometer → OpenTelemetry bridge).
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // Transactional outbox: PostgreSQL store + schedulers, and exactly one transport (Kafka).
+    implementation(platform("io.codehunters:sdk-bom:${property("codehunters.sdk.bom.version")}"))
+    implementation("io.codehunters:sdk-event-messaging-jdbc")
+    implementation("io.codehunters:sdk-event-messaging-kafka")
+    implementation("org.springframework.boot:spring-boot-starter-kafka")
     // Circuit breaker registries from YAML, with Micrometer meters and health indicators.
     implementation("io.github.resilience4j:resilience4j-spring-boot4:${property("resilience4j.version")}")
 
@@ -24,6 +29,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-kafka")
+    testImplementation("org.awaitility:awaitility")
     testImplementation("io.micrometer:micrometer-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:${property("archunit.version")}")
     testImplementation("io.karatelabs:karate-junit5:${property("karate.version")}")

@@ -10,17 +10,13 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
 
 /**
  * Black-box BDD suite: Karate drives the real HTTP stack against real PostgreSQL and Valkey. After
  * the run, the meters prove the decorator chain (metrics → cache → JDBC) is actually wired.
  */
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-@Import({PostgresContainerConfiguration.class, ValkeyContainerConfiguration.class})
+@IntegrationTestContainers
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class CustomApiAcceptanceTest {
 

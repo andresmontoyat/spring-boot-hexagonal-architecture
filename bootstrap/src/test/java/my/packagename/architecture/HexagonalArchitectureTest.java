@@ -21,6 +21,7 @@ class HexagonalArchitectureTest {
   private static final String INFRASTRUCTURE = "my.packagename.infrastructure..";
   private static final String ENTRY_POINTS = "my.packagename.infrastructure.entry.points..";
   private static final String DRIVEN_ADAPTERS = "my.packagename.infrastructure.driven.adapters..";
+  private static final String OUTBOX_API = "io.codehunters.messaging";
   private static final String USE_CASE_DECORATORS =
       "my.packagename.infrastructure.driven.adapters.metrics..";
 
@@ -34,15 +35,33 @@ class HexagonalArchitectureTest {
           .resideInAnyPackage("java..", DOMAIN)
           .because("The domain is pure Java: no framework, no application, no infrastructure");
 
+  /** The outbox SDK's model, ports and factories are framework-free; its other packages are not. */
   @ArchTest
-  static final ArchRule applicationShouldOnlyDependOnJdkDomainAndItself =
+  static final ArchRule applicationShouldOnlyDependOnJdkDomainAndPureOutboxApi =
       classes()
           .that()
           .resideInAPackage(APPLICATION)
           .should()
           .onlyDependOnClassesThat()
-          .resideInAnyPackage("java..", DOMAIN, APPLICATION)
+          .resideInAnyPackage("java..", DOMAIN, APPLICATION, OUTBOX_API, OUTBOX_API + ".factory")
           .because("Use cases and ports are framework-agnostic; adapters bring the frameworks");
+
+  @ArchTest
+  static final ArchRule applicationShouldOnlyWriteToTheOutbox =
+      noClasses()
+          .that()
+          .resideInAPackage(APPLICATION)
+          .should()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName(OUTBOX_API + ".OutboxDispatchStore")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName(OUTBOX_API + ".SendOutboxMessagesPort")
+          .orShould()
+          .dependOnClassesThat()
+          .haveFullyQualifiedName(OUTBOX_API + ".MessagePublisherPort")
+          .because(
+              "Use cases write events with OutboxWriter; dispatch belongs to the SDK (messaging.md §4.3.1)");
 
   @ArchTest
   static final ArchRule portsShouldBeInterfaces =

@@ -26,6 +26,9 @@ spring:
       connect-timeout: ${SPRING_DATA_REDIS_CONNECT_TIMEOUT:1s}
   liquibase:
     change-log: classpath:changelog/db.changelog-master.yaml
+  kafka:
+    # Connection only: the outbox derives its own idempotent producer from this (messaging.md §11.3).
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   threads:
     virtual:
       enabled: true
@@ -104,6 +107,28 @@ logging:
   structured:
     format:
       console: ${LOG_STRUCTURED_FORMAT_CONSOLE:}
+
+codehunters:
+  outbox:
+    enabled: ${CODEHUNTERS_OUTBOX_ENABLED:true}
+    batch-size: ${CODEHUNTERS_OUTBOX_BATCH_SIZE:50}
+    # Then FAILED, which blocks later events of the same custom until requeued.
+    max-attempts: ${CODEHUNTERS_OUTBOX_MAX_ATTEMPTS:5}
+    claim:
+      # Stale-claim recovery. Must exceed batch-size × send-timeout (startup check).
+      ttl: ${CODEHUNTERS_OUTBOX_CLAIM_TTL:5m}
+    backoff:
+      # 30s, 1m, 2m, 4m: tolerates ~7.5 min of broker outage before a row turns FAILED.
+      base-delay: ${CODEHUNTERS_OUTBOX_BACKOFF_BASE_DELAY:30s}
+      max-delay: ${CODEHUNTERS_OUTBOX_BACKOFF_MAX_DELAY:1h}
+    publisher:
+      kafka:
+        send-timeout: ${CODEHUNTERS_OUTBOX_PUBLISHER_KAFKA_SEND_TIMEOUT:5s}
+    task:
+      # Safety-net poll; rows are normally sent right after commit.
+      fixed-delay: ${CODEHUNTERS_OUTBOX_TASK_FIXED_DELAY:5s}
+    purge:
+      retention: ${CODEHUNTERS_OUTBOX_PURGE_RETENTION:7d}
 
 resilience4j:
   circuitbreaker:

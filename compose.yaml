@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: customs
+      POSTGRES_USER: customs
+      POSTGRES_PASSWORD: customs
+    ports:
+      - "5432:5432"

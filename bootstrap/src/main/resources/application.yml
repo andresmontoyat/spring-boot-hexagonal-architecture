@@ -1,0 +1,127 @@
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:custom-service}
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  lifecycle:
+    # Must stay below the orchestrator's terminationGracePeriodSeconds or in-flight requests die mid-drain.
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:20s}
+  docker:
+    compose:
+      # Only on the classpath via developmentOnly; never packaged in the boot jar.
+      file: ${SPRING_DOCKER_COMPOSE_FILE:../compose.yaml}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/customs}
+    username: ${SPRING_DATASOURCE_USERNAME:customs}
+    password: ${SPRING_DATASOURCE_PASSWORD:customs}
+    hikari:
+      # Fail fast when the pool is exhausted instead of queueing requests for 30s (resilience R1).
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:3s}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      # A cache miss costs less than waiting: keep the command timeout well below request latency.
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:200ms}
+      connect-timeout: ${SPRING_DATA_REDIS_CONNECT_TIMEOUT:1s}
+  liquibase:
+    change-log: classpath:changelog/db.changelog-master.yaml
+  threads:
+    virtual:
+      enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: ${SERVER_CONTEXT_PATH:/${spring.application.name}}
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+
+management:
+  # Actuator on its own port: the ingress never publishes it, so heapdump/env stay internal.
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health,info,metrics}
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:when_authorized}
+      probes:
+        enabled: true
+      group:
+        # Liveness ignores dependencies: a DB outage should stop traffic, not restart pods in a loop.
+        liveness:
+          include: livenessState
+        # Valkey stays out: the cache is fail-open, losing it must not pull the pod from traffic.
+        readiness:
+          include: readinessState,db
+    env:
+      show-values: never
+    configprops:
+      show-values: never
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}   # lower per environment
+    propagation:
+      type: ${MANAGEMENT_TRACING_PROPAGATION_TYPE:w3c}
+  opentelemetry:
+    resource-attributes:
+      deployment.environment: ${SPRING_PROFILES_ACTIVE:local}
+    tracing:
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        url: ${MANAGEMENT_OTLP_METRICS_EXPORT_URL:http://localhost:4318/v1/metrics}
+        step: ${MANAGEMENT_OTLP_METRICS_EXPORT_STEP:30s}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        usecase.operation: true
+        http.server.requests: true
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    my.packagename: ${LOG_LEVEL_APP:INFO}
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT_CONSOLE:}
+
+cache:
+  custom:
+    # Upper bound on staleness if an eviction is ever lost (writes evict before and after commit).
+    ttl: ${CACHE_CUSTOM_TTL:10m}
+    key-prefix: ${CACHE_CUSTOM_KEY_PREFIX:${spring.application.name}:custom:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT_CONSOLE:logstash}
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}

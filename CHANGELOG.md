@@ -23,6 +23,7 @@ versioning: [SemVer](https://semver.org/).
 - KrakenD gateway (JWT, roles, rate limit, CORS) and a Keycloak realm as code.
 - ArchUnit rules, Testcontainers integration tests, Karate BDD suite, gateway E2E test.
 - Local stack in `compose.yaml`; ADRs 0001–0006.
+- CI: `validate.yml` calls `Codehunters-IO/ci-templates` `java-pr-pipeline@v2` (`check`, TruffleHog, dependency review).
 
 ### Fixed
 

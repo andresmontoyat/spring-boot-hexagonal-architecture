@@ -29,6 +29,15 @@ spring:
   kafka:
     # Connection only: the outbox derives its own idempotent producer from this (messaging.md §11.3).
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Must equal the token's `iss` claim: the URL clients use to reach Keycloak.
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI:http://localhost:8180/realms/customs}
+          # Explicit so startup does not depend on reaching the issuer for OIDC discovery.
+          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI:http://localhost:8180/realms/customs/protocol/openid-connect/certs}
+          audiences: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES:customs-api}
   threads:
     virtual:
       enabled: true
@@ -147,6 +156,11 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
         # Out of readiness on purpose: the cache is fail-open (resilience.md §8).
         register-health-indicator: false
+
+security:
+  keycloak:
+    # Only this client's resource_access roles are honoured (platform-reader / platform-writer).
+    client-id: ${SECURITY_KEYCLOAK_CLIENT_ID:customs-api}
 
 cache:
   custom:

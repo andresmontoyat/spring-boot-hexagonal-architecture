@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.intuit.karate.Results;
 import com.intuit.karate.Runner;
+import dasniko.testcontainers.keycloak.KeycloakContainer;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -27,11 +28,16 @@ class CustomApiAcceptanceTest {
 
   @Autowired private MeterRegistry registry;
 
+  @Autowired private KeycloakContainer keycloak;
+
   @Test
   void should_satisfy_every_customs_scenario_through_the_decorator_chain() {
+    KeycloakTokens tokens = new KeycloakTokens(keycloak);
     Results results =
         Runner.path("classpath:karate/customs")
             .systemProperty("baseUrl", "http://localhost:" + port + contextPath)
+            .systemProperty("writerToken", tokens.writer())
+            .systemProperty("readerToken", tokens.reader())
             .outputCucumberJson(false)
             .parallel(1);
 

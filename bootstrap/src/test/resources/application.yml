@@ -27,6 +27,13 @@ management:
     export:
       enabled: false
 
+# issuer-uri and jwk-set-uri come from KeycloakContainerConfiguration (a context initializer).
+spring.security.oauth2.resourceserver.jwt.audiences: customs-api
+
+security:
+  keycloak:
+    client-id: customs-api
+
 cache:
   custom:
     ttl: 1m

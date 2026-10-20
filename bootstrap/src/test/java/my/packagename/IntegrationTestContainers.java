@@ -7,6 +7,7 @@ import java.lang.annotation.Target;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ContextConfiguration;
 
 /**
  * One shared configuration for every full-context test, so Spring's context cache starts the
@@ -15,6 +16,7 @@ import org.springframework.context.annotation.Import;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@ContextConfiguration(initializers = KeycloakContainerConfiguration.class)
 @Import({
   PostgresContainerConfiguration.class,
   ValkeyContainerConfiguration.class,

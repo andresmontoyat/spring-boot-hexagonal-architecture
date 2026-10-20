@@ -20,6 +20,7 @@ import my.packagename.infrastructure.entry.points.rest.dto.response.PageResponse
 import my.packagename.infrastructure.entry.points.rest.mapper.CustomRestMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +37,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RestController
 @RequestMapping("/api/v1/customs")
 public class CustomController {
+
+  /** Keycloak client roles platform-reader / platform-writer, mapped by the JWT converter. */
+  static final String CAN_READ = "hasAnyRole('READER', 'WRITER')";
+
+  static final String CAN_WRITE = "hasRole('WRITER')";
 
   private final CreateCustomPort createCustom;
   private final FindCustomPort findCustom;
@@ -57,6 +63,7 @@ public class CustomController {
   }
 
   @GetMapping
+  @PreAuthorize(CAN_READ)
   public PageResponse<CustomResponse> list(
       @RequestParam(defaultValue = "0") @Min(0) int page,
       @RequestParam(defaultValue = "20") @Min(1) @Max(PageQuery.MAX_SIZE) int size) {
@@ -64,11 +71,13 @@ public class CustomController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize(CAN_READ)
   public CustomResponse find(@PathVariable UUID id) {
     return CustomRestMapper.toResponse(findCustom.execute(new CustomId(id)));
   }
 
   @PostMapping
+  @PreAuthorize(CAN_WRITE)
   public ResponseEntity<CustomResponse> create(@Valid @RequestBody CreateCustomRequest request) {
     CustomResponse created =
         CustomRestMapper.toResponse(createCustom.execute(CustomRestMapper.toCommand(request)));
@@ -76,6 +85,7 @@ public class CustomController {
   }
 
   @PutMapping("/{id}")
+  @PreAuthorize(CAN_WRITE)
   public CustomResponse rename(
       @PathVariable UUID id, @Valid @RequestBody RenameCustomRequest request) {
     return CustomRestMapper.toResponse(
@@ -83,6 +93,7 @@ public class CustomController {
   }
 
   @DeleteMapping("/{id}")
+  @PreAuthorize(CAN_WRITE)
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable UUID id) {
     deleteCustom.execute(new CustomId(id));

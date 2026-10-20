@@ -3,6 +3,27 @@ Feature: Manage customs through the public REST API
   Background:
     * url baseUrl
     * path '/api/v1/customs'
+    # Default caller: a Keycloak service account holding platform-writer
+    * configure headers = { Authorization: '#("Bearer " + writerToken)' }
+
+  Scenario: A caller without a token is rejected with a problem document
+    * configure headers = null
+    When method get
+    Then status 401
+    And match response.code == 'UNAUTHENTICATED'
+    And match responseHeaders['WWW-Authenticate'][0] contains 'Bearer'
+
+  Scenario: A reader can list but cannot create
+    * configure headers = { Authorization: '#("Bearer " + readerToken)' }
+    When method get
+    Then status 200
+
+    Given url baseUrl
+    And path '/api/v1/customs'
+    And request { name: 'Forbidden' }
+    When method post
+    Then status 403
+    And match response.code == 'ACCESS_DENIED'
 
   Scenario: A created custom can be read back
     Given request { name: 'Demo' }

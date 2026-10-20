@@ -3,6 +3,8 @@ package my.packagename.infrastructure.entry.points.rest;
 import static my.packagename.infrastructure.entry.points.rest.FakeCustomPorts.CONTENDED_ID;
 import static my.packagename.infrastructure.entry.points.rest.FakeCustomPorts.KNOWN_ID;
 import static my.packagename.infrastructure.entry.points.rest.FakeCustomPorts.NEW_ID;
+import static my.packagename.infrastructure.entry.points.rest.SecurityTestSupport.reader;
+import static my.packagename.infrastructure.entry.points.rest.SecurityTestSupport.writer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -18,7 +20,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 @WebMvcTest(CustomController.class)
-@Import({FakeCustomPorts.class, GlobalExceptionHandler.class})
+@Import({FakeCustomPorts.class, GlobalExceptionHandler.class, SecurityTestSupport.class})
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class CustomControllerTest {
 
@@ -49,7 +51,8 @@ class CustomControllerTest {
 
   @Test
   void should_return_custom_when_it_exists() {
-    MvcTestResult result = mvc.get().uri(BASE + "/{id}", KNOWN_ID.value()).exchange();
+    MvcTestResult result =
+        mvc.get().uri(BASE + "/{id}", KNOWN_ID.value()).with(reader()).exchange();
 
     assertThat(result).hasStatusOk();
     assertThat(result).bodyJson().extractingPath("$.id").isEqualTo(KNOWN_ID.toString());
@@ -58,7 +61,7 @@ class CustomControllerTest {
 
   @Test
   void should_return_404_problem_when_custom_does_not_exist() {
-    MvcTestResult result = mvc.get().uri(BASE + "/{id}", NEW_ID.value()).exchange();
+    MvcTestResult result = mvc.get().uri(BASE + "/{id}", NEW_ID.value()).with(reader()).exchange();
 
     assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
     assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("CUSTOM_NOT_FOUND");
@@ -67,7 +70,7 @@ class CustomControllerTest {
 
   @Test
   void should_return_400_problem_when_id_is_not_a_uuid() {
-    MvcTestResult result = mvc.get().uri(BASE + "/not-a-uuid").exchange();
+    MvcTestResult result = mvc.get().uri(BASE + "/not-a-uuid").with(reader()).exchange();
 
     assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
     assertThat(result).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
@@ -75,7 +78,7 @@ class CustomControllerTest {
 
   @Test
   void should_return_page_envelope_when_listing() {
-    MvcTestResult result = mvc.get().uri(BASE + "?page=0&size=5").exchange();
+    MvcTestResult result = mvc.get().uri(BASE + "?page=0&size=5").with(reader()).exchange();
 
     assertThat(result).hasStatusOk();
     assertThat(result).bodyJson().extractingPath("$.items[0].name").isEqualTo("Demo");
@@ -84,7 +87,7 @@ class CustomControllerTest {
 
   @Test
   void should_return_400_problem_when_page_size_is_out_of_range() {
-    MvcTestResult result = mvc.get().uri(BASE + "?size=101").exchange();
+    MvcTestResult result = mvc.get().uri(BASE + "?size=101").with(reader()).exchange();
 
     assertThat(result).hasStatus(HttpStatus.BAD_REQUEST);
     assertThat(result).bodyJson().extractingPath("$.code").isEqualTo("VALIDATION_FAILED");
@@ -119,14 +122,16 @@ class CustomControllerTest {
 
   @Test
   void should_return_204_when_custom_is_deleted() {
-    MvcTestResult result = mvc.delete().uri(BASE + "/{id}", KNOWN_ID.value()).exchange();
+    MvcTestResult result =
+        mvc.delete().uri(BASE + "/{id}", KNOWN_ID.value()).with(writer()).exchange();
 
     assertThat(result).hasStatus(HttpStatus.NO_CONTENT);
   }
 
   @Test
   void should_return_404_problem_when_deleting_unknown_custom() {
-    MvcTestResult result = mvc.delete().uri(BASE + "/{id}", NEW_ID.value()).exchange();
+    MvcTestResult result =
+        mvc.delete().uri(BASE + "/{id}", NEW_ID.value()).with(writer()).exchange();
 
     assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
   }
@@ -143,10 +148,15 @@ class CustomControllerTest {
   }
 
   private MvcTestResult post(String uri, String json, String contentType) {
-    return mvc.post().uri(uri).contentType(contentType).content(json).exchange();
+    return mvc.post().uri(uri).with(writer()).contentType(contentType).content(json).exchange();
   }
 
   private MvcTestResult put(String uri, String json) {
-    return mvc.put().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+    return mvc.put()
+        .uri(uri)
+        .with(writer())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json)
+        .exchange();
   }
 }

@@ -34,6 +34,12 @@ dependencies {
     testImplementation("io.micrometer:micrometer-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:${property("archunit.version")}")
     testImplementation("io.karatelabs:karate-junit5:${property("karate.version")}")
+    testImplementation("com.github.dasniko:testcontainers-keycloak:${property("testcontainers.keycloak.version")}")
+}
+
+// The committed realm is the single source for local compose and for tests.
+sourceSets.named("test") {
+    resources.srcDir(rootProject.file("infra/keycloak"))
 }
 
 tasks.named<BootJar>("bootJar") {

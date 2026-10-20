@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -47,6 +49,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   ProblemDetail handleConflict(
       CustomConcurrentModificationException ex, HttpServletRequest request) {
     return problem(HttpStatus.CONFLICT, "CUSTOM_CONCURRENT_MODIFICATION", ex.getMessage(), request);
+  }
+
+  /**
+   * {@code @PreAuthorize} denials surface here before the security filter sees them; rethrow so
+   * Spring Security renders the single 401/403 problem shape instead of the 500 fallback below.
+   */
+  @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
+  void rethrowSecurityFailure(RuntimeException ex) {
+    throw ex;
   }
 
   @ExceptionHandler(Exception.class)

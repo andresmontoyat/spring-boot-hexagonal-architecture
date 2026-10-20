@@ -3,6 +3,7 @@ package my.packagename;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import dasniko.testcontainers.keycloak.KeycloakContainer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -42,6 +43,8 @@ class OutboxPublishingAcceptanceTest {
   private String contextPath;
 
   @Autowired private ConsumerFactory<String, String> consumerFactory;
+
+  @Autowired private KeycloakContainer keycloak;
 
   private Consumer<String, String> consumer;
   private final List<ConsumerRecord<String, String>> received = new CopyOnWriteArrayList<>();
@@ -87,6 +90,7 @@ class OutboxPublishingAcceptanceTest {
     return RestClient.create("http://localhost:" + port + contextPath)
         .post()
         .uri("/api/v1/customs")
+        .headers(headers -> headers.setBearerAuth(new KeycloakTokens(keycloak).writer()))
         .contentType(MediaType.APPLICATION_JSON)
         .body("{\"name\":\"" + name + "\"}")
         .retrieve()

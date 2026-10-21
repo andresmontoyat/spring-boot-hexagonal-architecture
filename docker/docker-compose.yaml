@@ -1,7 +1,10 @@
 # Local stack. `./gradlew :bootstrap:bootRun` starts it through spring-boot-docker-compose;
 # the service itself runs on the host (port 8080) and KrakenD reaches it via host.docker.internal.
+# Paths below are relative to this docker/ folder.
 #
-# Secrets below are obvious lab defaults (application-yml.md R7); override them in a .env file.
+# Secrets below are obvious lab defaults (application-yml.md R7); override them in docker/.env.
+name: spring-boot-hexagonal-architecture
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -37,7 +40,7 @@ services:
       CUSTOMS_READER_BOT_SECRET: ${CUSTOMS_READER_BOT_SECRET:-local-reader-secret}
       CUSTOMS_DEMO_USER_PASSWORD: ${CUSTOMS_DEMO_USER_PASSWORD:-local-demo-password}
     volumes:
-      - ./infra/keycloak:/opt/keycloak/data/import:ro
+      - ./keycloak:/opt/keycloak/data/import:ro
     ports:
       - "8180:8080"
 
@@ -56,7 +59,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./infra/krakend:/etc/krakend:ro
+      - ./krakend:/etc/krakend:ro
     ports:
       - "8000:8080"
     depends_on:

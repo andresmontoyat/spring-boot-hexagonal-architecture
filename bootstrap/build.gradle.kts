@@ -39,13 +39,18 @@ dependencies {
 
 // The committed realm is the single source for local compose and for tests.
 sourceSets.named("test") {
-    resources.srcDir(rootProject.file("infra/keycloak"))
+    resources.srcDir(rootProject.file("docker/keycloak"))
 }
 
 tasks.named<Test>("test") {
     // The gateway test mounts the same KrakenD config that compose runs.
-    systemProperty("krakend.config.dir", rootProject.file("infra/krakend").absolutePath)
-    inputs.dir(rootProject.file("infra/krakend"))
+    systemProperty("krakend.config.dir", rootProject.file("docker/krakend").absolutePath)
+    inputs.dir(rootProject.file("docker/krakend"))
+}
+
+// Run from the repository root so spring.docker.compose.file (docker/docker-compose.yaml) resolves.
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    workingDir = rootDir
 }
 
 tasks.named<BootJar>("bootJar") {

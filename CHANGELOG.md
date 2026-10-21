@@ -22,7 +22,7 @@ versioning: [SemVer](https://semver.org/).
 - Use case metrics decorators; OTLP export of metrics and traces.
 - KrakenD gateway (JWT, roles, rate limit, CORS) and a Keycloak realm as code.
 - ArchUnit rules, Testcontainers integration tests, Karate BDD suite, gateway E2E test.
-- Local stack in `compose.yaml`; ADRs 0001–0006.
+- Local stack in `docker/docker-compose.yaml` (with the Keycloak realm and KrakenD config); ADRs 0001–0006.
 - Multi-stage `Dockerfile` (layered jar, pinned Temurin 21 JRE, non-root, read-only app files, healthcheck).
 - CI: `validate.yml` calls `Codehunters-IO/ci-templates` `java-pr-pipeline@v2` (`check`, TruffleHog, dependency review).
 

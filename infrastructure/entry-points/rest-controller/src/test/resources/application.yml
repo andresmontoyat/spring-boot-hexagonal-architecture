@@ -1,0 +1,3 @@
+security:
+  keycloak:
+    client-id: customs-api

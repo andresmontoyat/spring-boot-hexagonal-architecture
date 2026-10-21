@@ -1,0 +1,40 @@
+# Standalone: does not inherit main's placeholders. Datasource and Valkey come from @ServiceConnection.
+spring:
+  application:
+    name: custom-service
+  docker:
+    compose:
+      enabled: false
+  liquibase:
+    change-log: classpath:changelog/db.changelog-master.yaml
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  servlet:
+    context-path: /custom-service
+
+management:
+  server:
+    port: 0
+  # No collector in tests: keep instruments in-process, export nothing.
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  tracing:
+    export:
+      enabled: false
+
+# issuer-uri and jwk-set-uri come from KeycloakContainerConfiguration (a context initializer).
+spring.security.oauth2.resourceserver.jwt.audiences: customs-api
+
+security:
+  keycloak:
+    client-id: customs-api
+
+cache:
+  custom:
+    ttl: 1m
+    key-prefix: "test:custom:"

@@ -1,0 +1,134 @@
+{
+  "realm": "customs",
+  "enabled": true,
+  "sslRequired": "external",
+  "accessTokenLifespan": 300,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "bruteForceProtected": true,
+  "roles": {
+    "client": {
+      "customs-api": [
+        { "name": "platform-reader", "description": "Read customs" },
+        { "name": "platform-writer", "description": "Create, rename and delete customs" }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "customs-api",
+      "name": "Customs API (resource server)",
+      "description": "Holds the API roles; no login flow of its own.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "customs-web",
+      "name": "Customs web (browser login)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:*"],
+      "webOrigins": ["+"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "protocolMappers": [
+        {
+          "name": "audience-customs-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "customs-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "customs-writer-bot",
+      "name": "Automation with write access",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${CUSTOMS_WRITER_BOT_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "audience-customs-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "customs-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "customs-reader-bot",
+      "name": "Automation with read access",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${CUSTOMS_READER_BOT_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "audience-customs-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "customs-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-customs-writer-bot",
+      "enabled": true,
+      "serviceAccountClientId": "customs-writer-bot",
+      "clientRoles": { "customs-api": ["platform-writer"] }
+    },
+    {
+      "username": "service-account-customs-reader-bot",
+      "enabled": true,
+      "serviceAccountClientId": "customs-reader-bot",
+      "clientRoles": { "customs-api": ["platform-reader"] }
+    },
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@example.com",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Writer",
+      "credentials": [{ "type": "password", "value": "${CUSTOMS_DEMO_USER_PASSWORD}", "temporary": false }],
+      "clientRoles": { "customs-api": ["platform-writer"] }
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@example.com",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Reader",
+      "credentials": [{ "type": "password", "value": "${CUSTOMS_DEMO_USER_PASSWORD}", "temporary": false }],
+      "clientRoles": { "customs-api": ["platform-reader"] }
+    }
+  ]
+}

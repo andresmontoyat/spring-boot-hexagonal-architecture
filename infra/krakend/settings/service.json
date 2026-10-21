@@ -1,0 +1,6 @@
+{
+  "name": "customs-gateway",
+  "port": 8080,
+  "timeout": "10s",
+  "cache_ttl": "0s"
+}

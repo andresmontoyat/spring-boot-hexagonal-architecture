@@ -1,0 +1,67 @@
+{{- /*
+  KrakenD Flexible Configuration (api-gateway.md §6). Rendered at container start so every
+  env lookup sees the runtime environment. Topology B (ADR 0004): the gateway validates the JWT
+  and forwards it unchanged; the service re-validates. No claims-to-headers trust.
+*/ -}}
+{{- $customs := env "CUSTOMS_HOST" | default .hosts.customs -}}
+{{- $issuer := env "KEYCLOAK_ISSUER" | default .jwt.issuer -}}
+{{- $jwks := env "KEYCLOAK_JWKS_URL" | default .jwt.jwk_url -}}
+{{- $insecureJwks := eq (env "KRAKEND_JWK_INSECURE") "true" -}}
+{{- $otel := env "OTEL_EXPORTER_OTLP_HOST" -}}
+{
+  "$schema": "https://www.krakend.io/schema/v2.13/krakend.json",
+  "version": 3,
+  "name": "{{ .service.name }}",
+  "port": {{ .service.port }},
+  "timeout": "{{ .service.timeout }}",
+  "cache_ttl": "{{ .service.cache_ttl }}",
+  "extra_config": {
+    "security/cors": {{ marshal .cors }},
+    "router": {
+      "return_error_msg": false,
+      "hide_version_header": true
+    }{{ if $otel }},
+    "telemetry/opentelemetry": {
+      "service_name": "{{ .service.name }}",
+      "exporters": {
+        "otlp": [
+          { "name": "collector", "host": "{{ $otel }}", "port": 4317, "use_http": false }
+        ]
+      },
+      "layers": { "global": { "report_headers": true }, "proxy": {}, "backend": {} }
+    }{{ end }}
+  },
+  "endpoints": [
+    {{- range $i, $e := .endpoints.list }}{{ if $i }},{{ end }}
+    {
+      "endpoint": "{{ $e.path }}",
+      "method": "{{ $e.method }}",
+      "output_encoding": "no-op",
+      "input_headers": ["Authorization", "Content-Type", "Accept", "Traceparent", "Tracestate"],
+      "input_query_strings": {{ marshal $e.query }},
+      "extra_config": {
+        "auth/validator": {
+          "alg": "{{ $.jwt.alg }}",
+          "jwk_url": "{{ $jwks }}",
+          "issuer": "{{ $issuer }}",
+          "audience": {{ marshal $.jwt.audience }},
+          "roles_key": "{{ $.jwt.roles_key }}",
+          "roles_key_is_nested": true,
+          "roles": {{ if eq $e.access "write" }}{{ marshal $.endpoints.writers }}{{ else }}{{ marshal $.endpoints.readers }}{{ end }},
+          "cache": {{ $.jwt.cache }},
+          "cache_duration": {{ $.jwt.cache_duration }},
+          "disable_jwk_security": {{ $insecureJwks }}
+        },
+        "qos/ratelimit/router": {{ marshal $.rate_limit }}
+      },
+      "backend": [
+        {
+          "host": ["{{ $customs }}"],
+          "url_pattern": "{{ $.hosts.customs_context_path }}{{ $e.path }}",
+          "encoding": "no-op"
+        }
+      ]
+    }
+    {{- end }}
+  ]
+}

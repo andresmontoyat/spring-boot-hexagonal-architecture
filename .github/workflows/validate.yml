@@ -1,0 +1,42 @@
+# PR / branch quality gate. Thin caller: all steps live in Codehunters-IO/ci-templates.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   GH_PACKAGES_USERNAME  GitHub user that can read the io.codehunters packages
+#   GH_PACKAGES_TOKEN     classic PAT with read:packages (resolves the outbox SDK)
+name: Validation
+
+on:
+  push:
+    branches: ['feature/**', 'bugfix/**', 'hotfix/**', 'refactor/**']
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  validate:
+    permissions:
+      contents: read
+      packages: read
+    uses: Codehunters-IO/ci-templates/.github/workflows/java-pr-pipeline.yml@v2
+    with:
+      java_version: '21'
+      # `check` = tests + JaCoCo gate (≥80% lines per module) + Spotless + ArchUnit,
+      # so the template's own coverage step (needs jacocoLogCodeCoverage) stays off.
+      test_tasks: check
+      run_coverage: false
+      run_trufflehog: true
+      run_dependency_review: true
+      # Pre-pulled so Testcontainers does not hit Docker Hub rate limits mid-test.
+      docker_images: |
+        testcontainers/ryuk:0.14.0
+        postgres:17-alpine
+        valkey/valkey:8-alpine
+        apache/kafka:3.9.1
+        quay.io/keycloak/keycloak:26.7.4
+        krakend:2.13.11
+    secrets: inherit

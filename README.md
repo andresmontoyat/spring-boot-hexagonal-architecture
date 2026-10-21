@@ -142,11 +142,11 @@ a decorator, not editing a use case.
 │       ├── valkey-cache/                    # cache decorator + circuit breaker
 │       └── metrics-publisher/               # use-case metrics decorators
 ├── bootstrap/                               # Spring Boot app, wiring, application.yml, acceptance tests
-├── infra/
+├── docker/
+│   ├── docker-compose.yaml                  # local stack
 │   ├── keycloak/customs-realm.json          # realm as code
 │   └── krakend/                             # gateway template + per-concern settings
 ├── docs/adr/                                # architecture decision records
-├── compose.yaml                             # local stack
 ├── Dockerfile
 └── .github/workflows/validate.yml           # CI quality gate
 ```
@@ -180,7 +180,8 @@ The integration and acceptance tests start their own containers; nothing needs t
 ./gradlew :bootstrap:bootRun
 ```
 
-Spring Boot starts `compose.yaml` for you. If a port is already taken on your machine, override it,
+Spring Boot starts `docker/docker-compose.yaml` for you (or run
+`docker compose -f docker/docker-compose.yaml up -d` yourself). If a port is already taken on your machine, override it,
 for example `VALKEY_PORT=16379 SPRING_DATA_REDIS_PORT=16379 ./gradlew :bootstrap:bootRun`.
 
 | URL | What |
@@ -206,7 +207,7 @@ curl -i -X POST http://localhost:8000/api/v1/customs \
 curl -s http://localhost:8000/api/v1/customs -H "Authorization: Bearer $TOKEN" | jq
 ```
 
-The secrets above are lab defaults from `compose.yaml`; override them in a `.env` file.
+The secrets above are lab defaults from `docker/docker-compose.yaml`; override them in `docker/.env`.
 
 ---
 
@@ -224,7 +225,7 @@ See [ADR 0004](docs/adr/0004-keycloak-resource-server-behind-krakend.md).
 | `customs-reader-bot` (client credentials), user `bob` | `platform-reader` | read |
 | `customs-web` | public client, Authorization Code + PKCE | browser login |
 
-The realm lives in [`infra/keycloak/customs-realm.json`](infra/keycloak/customs-realm.json).
+The realm lives in [`docker/keycloak/customs-realm.json`](docker/keycloak/customs-realm.json).
 Client secrets and demo passwords come only from environment placeholders, never from the file.
 `401` and `403` responses are problem documents with the codes `UNAUTHENTICATED` and
 `ACCESS_DENIED`.
@@ -400,7 +401,7 @@ repository is where they are proven in running code. These are the ones it appli
 | Messaging | Outbox only (no dual writes), events keyed per aggregate, one writer per key, idempotent consumers | `CustomEventOutbox`, ArchUnit outbox rules |
 | Resilience | Timeout on every I/O, resilience only in infrastructure, retry only idempotent calls, no stacked retries, fail-open vs fail-closed decided explicitly | `ResilientValkey`, explicit timeouts, ADR 0006 |
 | Security / identity | One topology per platform recorded as an ADR, roles mapped consistently, `@PreAuthorize` on inbound adapters only, mandatory negative tests | `SecurityConfig`, realm as code, 401/403 tests |
-| API gateway | Flexible Configuration split per concern, env-overridable hosts, edge JWT, rate limits, CORS | `infra/krakend` |
+| API gateway | Flexible Configuration split per concern, env-overridable hosts, edge JWT, rate limits, CORS | `docker/krakend` |
 | Observability | Metrics through decorators, low-cardinality tags, OTLP export | `metrics-publisher`, `management.*` |
 | ADRs | Architecturally significant changes recorded (MADR) before merge; accepted ADRs are never edited | `docs/adr/` |
 | Git workflow | Conventional Commits, atomic commits, signed commits, branch per change | Repository history |

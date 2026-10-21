@@ -8,8 +8,10 @@ spring:
     timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:20s}
   docker:
     compose:
-      # Only on the classpath via developmentOnly; never packaged in the boot jar.
-      file: ${SPRING_DOCKER_COMPOSE_FILE:../compose.yaml}
+      # Relative to the working directory: bootRun runs from the repository root.
+      # spring-boot-docker-compose is developmentOnly, so this never reaches the boot jar.
+      file: ${SPRING_DOCKER_COMPOSE_FILE:docker/docker-compose.yaml}
+      enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:true}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/customs}
     username: ${SPRING_DATASOURCE_USERNAME:customs}
@@ -174,6 +176,10 @@ spring:
   config:
     activate:
       on-profile: prod
+  # Deployed environments bring their own dependencies.
+  docker:
+    compose:
+      enabled: false
 logging:
   structured:
     format:

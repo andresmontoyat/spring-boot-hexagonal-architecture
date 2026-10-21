@@ -32,6 +32,9 @@ subject, not the business.
 - [Configuration](#configuration)
 - [Container image](#container-image)
 - [Continuous integration](#continuous-integration)
+- [Engineering guidelines](#engineering-guidelines)
+- [How we arrived at this design](#how-we-arrived-at-this-design)
+- [How the design evolves](#how-the-design-evolves)
 - [Architecture decisions](#architecture-decisions)
 - [Contributing](#contributing)
 - [License](#license)
@@ -379,6 +382,98 @@ TruffleHog secret scanning and dependency review on branches and pull requests. 
 needs two secrets: `GH_PACKAGES_USERNAME` and `GH_PACKAGES_TOKEN`.
 
 ---
+
+## Engineering guidelines
+
+This service is the reference implementation of a set of written engineering standards maintained
+alongside it. They are short, binding rules, each with a reason and a pre-merge checklist. This
+repository is where they are proven in running code. These are the ones it applies:
+
+| Guideline | What it mandates | Where you see it here |
+|---|---|---|
+| Hexagonal architecture | Dependencies point inward; every use case implements an inbound port; transactions through a port; cross-cutting concerns as decorators | Module layout, `TransactionPort`, `PortChain`, 10 ArchUnit rules |
+| Java code style | Records for data, immutable aggregates with private constructors and factories, static mappers, `Optional` over `null`, no field injection | `Custom`, `CustomName`, `*Mapper` classes |
+| Testing | TDD (red → green → refactor); domain tests without mocks; fakes over mocks; Testcontainers for adapters; Karate for entry points | Test suites per layer, shared test fixtures |
+| Gradle | Kotlin DSL, Java 21 toolchain, BOM-managed versions, Spotless, JaCoCo ≥ 80% wired into `check` | `build.gradle.kts`, `gradle.properties` |
+| `application.yml` | One file, profile documents, every value `${VAR:default}` with derivable names, actuator on its own port, comments explain *why* | `bootstrap/src/main/resources/application.yml` |
+| API design | Versioned paths, status-code matrix, RFC 9457 errors with a stable `code`, bounded pagination | `CustomController`, `GlobalExceptionHandler` |
+| Messaging | Outbox only (no dual writes), events keyed per aggregate, one writer per key, idempotent consumers | `CustomEventOutbox`, ArchUnit outbox rules |
+| Resilience | Timeout on every I/O, resilience only in infrastructure, retry only idempotent calls, no stacked retries, fail-open vs fail-closed decided explicitly | `ResilientValkey`, explicit timeouts, ADR 0006 |
+| Security / identity | One topology per platform recorded as an ADR, roles mapped consistently, `@PreAuthorize` on inbound adapters only, mandatory negative tests | `SecurityConfig`, realm as code, 401/403 tests |
+| API gateway | Flexible Configuration split per concern, env-overridable hosts, edge JWT, rate limits, CORS | `infra/krakend` |
+| Observability | Metrics through decorators, low-cardinality tags, OTLP export | `metrics-publisher`, `management.*` |
+| ADRs | Architecturally significant changes recorded (MADR) before merge; accepted ADRs are never edited | `docs/adr/` |
+| Git workflow | Conventional Commits, atomic commits, signed commits, branch per change | Repository history |
+
+## How we arrived at this design
+
+The repository started as a Java 8 / Spring Boot 2.3 template. Its folders were named after
+hexagonal layers, but the architecture was not enforced. We rebuilt it one layer at a time, starting
+from the domain and working outwards, writing the tests first at each step.
+
+1. **Audit of the template.** Framework annotations sat in the domain and entities were mutable.
+   JPA generated the schema, Springfox no longer worked, and the build resolved from the retired
+   JCenter. It also had real bugs: validation was inverted (only invalid input was saved), `isNew()`
+   was inverted, and an unknown id returned a 500 instead of a 404.
+2. **Baseline first.** Moved to Java 21, Spring Boot 4 and Gradle 9 before any feature work, with
+   quality gates (coverage, formatting, `-Werror`) in place from the first commit
+   ([ADR 0002](docs/adr/0002-java-21-spring-boot-4-gradle-9.md)).
+3. **Inside out, test first.** Domain, then use cases with fakes, then each adapter against its real
+   technology, then the wiring. ArchUnit landed with the wiring, so the boundaries were enforced
+   before features were added on top.
+4. **Cross-cutting concerns as decorators.** Metrics and cache were added without touching a single
+   use case. That validated the port-and-decorator design in practice
+   ([ADR 0001](docs/adr/0001-hexagonal-modules-and-decorator-chain.md)).
+5. **Events, security, resilience.** The outbox, Keycloak behind KrakenD, and the circuit breaker
+   came in that order. Each choice was recorded as an ADR
+   ([0004](docs/adr/0004-keycloak-resource-server-behind-krakend.md),
+   [0005](docs/adr/0005-transactional-outbox-with-codehunters-sdk-on-kafka.md),
+   [0006](docs/adr/0006-fail-open-valkey-cache-with-circuit-breaker.md)).
+6. **Delivery.** Shared CI pipeline, a hardened container image, and a full local stack.
+
+Applying the guidelines to real code fed back into the guidelines themselves:
+
+- **The messaging guideline had drifted from the outbox SDK it describes.** It taught a pre-9.0 port
+  (`OutboxRepositoryPort`), a configuration prefix the SDK silently ignores, and an envelope field
+  that no longer exists. We checked the guideline against the SDK's sources and READMEs, rewrote
+  it, and added regression checks so the drift cannot come back unnoticed.
+- **There was no resilience guideline.** It was written while building the cache's circuit breaker.
+  One rule came straight out of this work: no breaker on the outbox publisher, because it would
+  burn retry attempts.
+- **Two rules contradicted each other.** Metrics decorators wrap inbound ports, so they see
+  commands, but a general rule forbade commands in driven adapters. The ArchUnit rule now names the
+  exception and the reason, and a second rule keeps those decorators away from persistence.
+- **Running the real stack exposed a gap no test covered.** The test configuration shadows the
+  production `application.yml`, so a wrongly typed value (`connection-timeout: 3s`) only failed at
+  startup. A binding test now loads the production file on every build.
+- **Choosing the security topology was a guideline decision, not a matter of taste.** Trusting
+  identity headers from the gateway needs a guaranteed network boundary. A public template run with
+  Docker Compose cannot provide one, so the service validates tokens itself.
+
+## How the design evolves
+
+Every change follows the same loop: **guideline → ADR → enforcement → feedback.**
+
+- **Guidelines** state the rule and its reason.
+- **ADRs** record how this service applies a rule, or why it deviates. They are append-only: a
+  change of mind gets a new ADR that supersedes the old one.
+- **Enforcement** turns rules into failing builds: ArchUnit for structure, the coverage gate,
+  Spotless, `-Werror`, configuration-binding tests and acceptance tests. A rule that has been broken
+  twice gets an automated check instead of a reworded paragraph.
+- **Feedback**: when the code and a guideline disagree, the gap is fixed at its source, in the
+  guideline, the SDK or the test, and recorded in the guidelines' audit log.
+
+Next on the roadmap:
+
+| Item | Why |
+|---|---|
+| `CurrentUserPort` and audit fields | Identity reaches use cases through a port, never through the security context |
+| `Idempotency-Key` on `POST`, `ETag` / `If-Match` on `PUT` | Safe client retries and client-side optimistic concurrency |
+| A sample idempotent consumer | Shows deduplication on `outbox-message-id` end to end |
+| Toxiproxy tests for Valkey and the broker | Prove the timeout budget and breaker behaviour under latency, not just under total outage |
+| Main-branch pipeline (image build, scan, release) | Same shared templates as validation |
+| Kubernetes manifests with a NetworkPolicy | Prerequisite for ever switching to gateway-first identity headers |
+| Consumer-driven contract tests for events | Catch schema drift before deploy |
 
 ## Architecture decisions
 

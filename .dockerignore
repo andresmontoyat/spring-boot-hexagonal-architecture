@@ -1,0 +1,4 @@
+# Allow-list: the image needs only the boot jar. Everything else (sources, .env, .git, infra
+# secrets) stays out of the build context.
+*
+!bootstrap/build/libs/spring-boot-hexagonal-architecture.jar

@@ -96,6 +96,19 @@ curl -i -X POST http://localhost:8000/api/v1/customs \
 | `customs-reader-bot`, user `bob` | `platform-reader` | read |
 | `customs-web` | public client, Authorization Code + PKCE | browser login |
 
+## Container image
+
+```bash
+./gradlew :bootstrap:bootJar          # the Dockerfile packages this jar; it does not compile
+docker build -t custom-service .
+```
+
+Two stages: Spring Boot layers are extracted so dependency layers stay cached, then copied into a
+pinned Temurin 21 JRE (Alpine). The process runs as UID 10001, the application files are root-owned
+and read-only to it, the heap follows the container memory limit (`MaxRAMPercentage=75`), and the
+`prod` profile (JSON logs, no Swagger) is the default. Ports: 8080 API, 8081 actuator (cluster-only).
+CI builds the jar outside Docker, so registry credentials never enter the image build.
+
 ## API
 
 | Method | Path | Role | Success |

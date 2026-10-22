@@ -86,6 +86,11 @@ public class CustomCacheAdapter
     return deleted;
   }
 
+  @Override
+  public long count() {
+    return delegate.count();
+  }
+
   private Optional<Custom> loadAndStore(CustomId id) {
     Optional<Custom> loaded = delegate.findById(id);
     loaded.ifPresent(this::store);

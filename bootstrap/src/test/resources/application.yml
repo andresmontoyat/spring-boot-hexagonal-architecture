@@ -38,3 +38,11 @@ cache:
   custom:
     ttl: 1m
     key-prefix: "test:custom:"
+
+jobs:
+  customs-report:
+    # Never on a timer in tests: they call the job themselves.
+    cron: "-"
+    lock-name: customs-report-test
+    lock-at-most-for: 1m
+    lock-at-least-for: 30s

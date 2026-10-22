@@ -8,14 +8,18 @@ import my.packagename.application.port.ChainablePort;
 import my.packagename.application.port.inbound.CreateCustomPort;
 import my.packagename.application.port.inbound.DeleteCustomPort;
 import my.packagename.application.port.inbound.FindCustomPort;
+import my.packagename.application.port.inbound.GenerateCustomsReportPort;
 import my.packagename.application.port.inbound.ListCustomsPort;
 import my.packagename.application.port.inbound.RenameCustomPort;
 import my.packagename.application.port.outbound.CustomIdGeneratorPort;
 import my.packagename.application.port.outbound.CustomRepositoryPort;
+import my.packagename.application.port.outbound.CustomsReportRepositoryPort;
 import my.packagename.application.port.outbound.TransactionPort;
+import my.packagename.application.result.ReportOutcome;
 import my.packagename.application.usecase.CreateCustomUseCase;
 import my.packagename.application.usecase.DeleteCustomUseCase;
 import my.packagename.application.usecase.FindCustomUseCase;
+import my.packagename.application.usecase.GenerateCustomsReportUseCase;
 import my.packagename.application.usecase.ListCustomsUseCase;
 import my.packagename.application.usecase.RenameCustomUseCase;
 import my.packagename.domain.model.Custom;
@@ -100,5 +104,17 @@ public class UseCaseConfig {
       ObjectProvider<ChainablePort<DeleteCustomPort>> decorators) {
     return PortChain.link(
         new DeleteCustomUseCase(transaction, repository, events), decorators.stream().toList());
+  }
+
+  @Bean
+  @Primary
+  GenerateCustomsReportPort generateCustomsReportPort(
+      TransactionPort<ReportOutcome> transaction,
+      CustomRepositoryPort customs,
+      CustomsReportRepositoryPort reports,
+      ObjectProvider<ChainablePort<GenerateCustomsReportPort>> decorators) {
+    return PortChain.link(
+        new GenerateCustomsReportUseCase(transaction, customs, reports),
+        decorators.stream().toList());
   }
 }

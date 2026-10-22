@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":application"))
     implementation(project(":rest-controller"))
+    implementation(project(":scheduler"))
     implementation(project(":jdbc-repository"))
     implementation(project(":valkey-cache"))
     implementation(project(":metrics-publisher"))

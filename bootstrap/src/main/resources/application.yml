@@ -171,6 +171,18 @@ cache:
     ttl: ${CACHE_CUSTOM_TTL:10m}
     key-prefix: ${CACHE_CUSTOM_KEY_PREFIX:${spring.application.name}:custom:}
 
+jobs:
+  customs-report:
+    # Every instance fires this (UTC); the ShedLock lock lets one of them run it. "-" disables it.
+    cron: ${JOBS_CUSTOMS_REPORT_CRON:0 * * * * *}
+    # Per service: one name shared by several services would serialize them all.
+    lock-name: ${JOBS_CUSTOMS_REPORT_LOCK_NAME:customs-report-${spring.application.name}}
+    # Must exceed the slowest run, or the lock expires mid-run and a second instance overlaps.
+    lock-at-most-for: ${JOBS_CUSTOMS_REPORT_LOCK_AT_MOST_FOR:2m}
+    # Absorbs scheduler jitter and clock skew between instances. Must stay below the cron period,
+    # or the lock would still be held when the next tick fires and that tick would be skipped.
+    lock-at-least-for: ${JOBS_CUSTOMS_REPORT_LOCK_AT_LEAST_FOR:30s}
+
 ---
 spring:
   config:

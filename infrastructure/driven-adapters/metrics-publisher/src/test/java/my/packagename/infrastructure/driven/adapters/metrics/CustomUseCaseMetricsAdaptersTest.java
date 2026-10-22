@@ -7,9 +7,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Instant;
 import my.packagename.application.command.CreateCustomCommand;
+import my.packagename.application.command.GenerateCustomsReportCommand;
 import my.packagename.application.command.RenameCustomCommand;
 import my.packagename.application.query.PageQuery;
+import my.packagename.application.result.ReportOutcome;
 import my.packagename.domain.exception.CustomNotFoundException;
 import my.packagename.domain.model.Custom;
 import my.packagename.domain.model.CustomName;
@@ -81,10 +84,31 @@ class CustomUseCaseMetricsAdaptersTest {
     assertThat(timerCount("delete_custom")).isOne();
   }
 
+  @Test
+  void should_count_duplicate_runs_when_report_was_already_generated() {
+    GenerateCustomsReportMetricsAdapter adapter = new GenerateCustomsReportMetricsAdapter(registry);
+    adapter.setDelegate(command -> ReportOutcome.ALREADY_GENERATED);
+
+    assertThat(adapter.execute(new GenerateCustomsReportCommand(Instant.EPOCH)))
+        .isEqualTo(ReportOutcome.ALREADY_GENERATED);
+    assertThat(
+            registry
+                .get(GenerateCustomsReportMetricsAdapter.OUTCOMES)
+                .tag("outcome", "already_generated")
+                .counter()
+                .count())
+        .isOne();
+    assertThat(timerCount("customs_report", "generate_customs_report")).isOne();
+  }
+
   private long timerCount(String operation) {
+    return timerCount("custom", operation);
+  }
+
+  private long timerCount(String entity, String operation) {
     return registry
         .get(MetricRecorded.TIMER)
-        .tags("entity", "custom", "operation", operation)
+        .tags("entity", entity, "operation", operation)
         .timer()
         .count();
   }

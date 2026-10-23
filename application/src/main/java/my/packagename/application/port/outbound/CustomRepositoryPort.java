@@ -24,4 +24,6 @@ public interface CustomRepositoryPort {
 
   /** Returns {@code true} when a row was removed. */
   boolean deleteById(CustomId id);
+
+  long count();
 }

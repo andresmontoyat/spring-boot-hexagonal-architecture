@@ -93,6 +93,16 @@ class CustomRepositoryAdapterIT {
     assertThat(page.totalElements()).isEqualTo(3);
   }
 
+  @Test
+  void should_count_stored_customs() {
+    // Given
+    long before = adapter.count();
+    adapter.insert(Custom.create(newId(), NAME));
+
+    // When / Then
+    assertThat(adapter.count()).isEqualTo(before + 1);
+  }
+
   private static CustomId newId() {
     return new CustomId(UUID.randomUUID());
   }

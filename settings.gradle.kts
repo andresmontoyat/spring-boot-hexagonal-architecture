@@ -10,6 +10,9 @@ project(":application").projectDir = file("application")
 include(":rest-controller")
 project(":rest-controller").projectDir = file("infrastructure/entry-points/rest-controller")
 
+include(":scheduler")
+project(":scheduler").projectDir = file("infrastructure/entry-points/scheduler")
+
 // Driven adapters (outbound adapters)
 include(":jdbc-repository")
 project(":jdbc-repository").projectDir = file("infrastructure/driven-adapters/jdbc-repository")

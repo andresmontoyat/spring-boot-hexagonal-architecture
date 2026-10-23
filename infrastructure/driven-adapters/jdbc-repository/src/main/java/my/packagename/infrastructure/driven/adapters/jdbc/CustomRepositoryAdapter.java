@@ -65,4 +65,9 @@ public class CustomRepositoryAdapter implements CustomRepositoryPort {
   public boolean deleteById(CustomId id) {
     return repository.deleteReturningCount(id.value()) > 0;
   }
+
+  @Override
+  public long count() {
+    return repository.count();
+  }
 }

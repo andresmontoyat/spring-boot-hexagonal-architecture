@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import my.packagename.infrastructure.driven.adapters.valkey.CustomCacheProperties;
 import my.packagename.infrastructure.entry.points.rest.security.KeycloakSecurityProperties;
+import my.packagename.infrastructure.entry.points.scheduler.CustomsReportJobProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
@@ -61,5 +62,15 @@ class MainConfigurationBindingTest {
         .isEqualTo(Duration.ofMinutes(10));
     assertThat(binder.bind("security.keycloak", KeycloakSecurityProperties.class).get().clientId())
         .isEqualTo("customs-api");
+  }
+
+  @Test
+  void should_bind_job_lock_windows_as_durations() {
+    CustomsReportJobProperties job =
+        binder.bind("jobs.customs-report", CustomsReportJobProperties.class).get();
+
+    assertThat(job.lockAtMostFor()).isEqualTo(Duration.ofMinutes(2));
+    assertThat(job.lockAtLeastFor()).isEqualTo(Duration.ofSeconds(30));
+    assertThat(job.lockName()).isEqualTo("customs-report-custom-service");
   }
 }

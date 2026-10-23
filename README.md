@@ -27,6 +27,7 @@ subject, not the business.
 - [API](#api)
 - [Events](#events)
 - [Caching and resilience](#caching-and-resilience)
+- [Scheduled jobs and concurrency](#scheduled-jobs-and-concurrency)
 - [Observability](#observability)
 - [Testing](#testing)
 - [Configuration](#configuration)
@@ -52,6 +53,7 @@ subject, not the business.
 | Persistence | Spring Data JDBC + Liquibase on PostgreSQL, optimistic locking |
 | Events | Transactional outbox → Kafka, published right after commit, keyed per aggregate |
 | Cache | Valkey cache-aside, **fail-open**, guarded by a Resilience4j circuit breaker |
+| Scheduled jobs | ShedLock lock per job and service, plus idempotent work per period |
 | Security | Keycloak OAuth2; KrakenD validates at the edge **and** the service re-validates |
 | Errors | RFC 9457 problem details with a stable machine-readable `code` |
 | Observability | Use-case metrics, traces and logs exported over OTLP |
@@ -89,9 +91,9 @@ flowchart LR
 
 | Layer | Contains | May depend on |
 |---|---|---|
-| `domain` | `Custom` aggregate, `CustomId` / `CustomName` value objects, domain exceptions | nothing (pure Java) |
+| `domain` | `Custom` aggregate, `CustomId` / `CustomName` value objects, `CustomsReport` / `ReportPeriod`, domain exceptions | nothing (pure Java) |
 | `application` | Use cases, inbound and outbound ports, commands, queries, integration events | `domain`, the framework-free outbox API |
-| `infrastructure` | REST entry point, JDBC / Valkey / metrics adapters | `application`, `domain`, frameworks |
+| `infrastructure` | REST and scheduler entry points, JDBC / Valkey / metrics adapters | `application`, `domain`, frameworks |
 | `bootstrap` | Spring Boot application, wiring, configuration | everything |
 
 `bootstrap` is the only place that names a use case class. Every port bean is the head of a chain,
@@ -136,7 +138,8 @@ a decorator, not editing a use case.
 ├── application/                             # use cases, ports, commands, events (+ test fixtures)
 ├── infrastructure/
 │   ├── entry-points/
-│   │   └── rest-controller/                 # REST API, security, problem details
+│   │   ├── rest-controller/                 # REST API, security, problem details
+│   │   └── scheduler/                       # scheduled jobs under ShedLock
 │   └── driven-adapters/
 │       ├── jdbc-repository/                 # PostgreSQL adapter, transactions, Liquibase changelog
 │       ├── valkey-cache/                    # cache decorator + circuit breaker
@@ -296,6 +299,41 @@ See [ADR 0006](docs/adr/0006-fail-open-valkey-cache-with-circuit-breaker.md).
 
 ---
 
+## Scheduled jobs and concurrency
+
+Every instance fires every `@Scheduled` trigger. The `customs-report` job stores, once a minute,
+how many customs exist. It is small on purpose: it exists to show what goes wrong when several
+instances run the same job, and how the service prevents it.
+
+| Problem | What happens | Prevention |
+|---|---|---|
+| No coordination | Each instance runs the tick: N instances, N reports | ShedLock lock on the `shedlock` table: one instance runs, the rest log a skip |
+| Lock expires mid-run | `lockAtMostFor` is shorter than the run, so a second instance takes the lock and both overlap | `lockAtMostFor` (2 m) well above the slowest run |
+| Fast run, late instance | The lock is released at once; an instance that fires a moment later (jitter, slower pod) repeats the tick | `lockAtLeastFor` (30 s), kept below the 1-minute period |
+| Clock skew between pods | Lock windows computed from each pod's clock | `usingDbTime`: windows are computed by PostgreSQL |
+| Anything that still gets through | Two runs reach the same period | `INSERT … ON CONFLICT DO NOTHING` on the period's primary key; counted as `already_generated` |
+| Overlap inside one instance | A slow run and the next fire on a multi-thread scheduler | A dedicated one-thread `jobTaskScheduler`, separate from the outbox SDK's scheduler |
+
+The lock is taken programmatically in `CustomsReportJob`, in the same style as the outbox SDK, and
+reuses the SDK's JDBC `LockProvider`. Each problem has a test in `CustomsReportJobConcurrencyIT`
+that first reproduces it, then shows the fix:
+
+```bash
+./gradlew :scheduler:test --tests '*CustomsReportJobConcurrencyIT'
+```
+
+To watch it locally, start two instances against the same stack (the second one on other ports)
+and follow the lock and the reports:
+
+```sql
+SELECT name, locked_by, locked_at, lock_until FROM shedlock;
+SELECT * FROM customs_report ORDER BY period_start DESC LIMIT 5;
+```
+
+See [ADR 0007](docs/adr/0007-shedlock-for-scheduled-jobs-plus-idempotent-work.md).
+
+---
+
 ## Observability
 
 Metrics and traces are exported over OTLP. Locally they go to `grafana/otel-lgtm`, at
@@ -307,6 +345,7 @@ http://localhost:3001.
 | `cache.gets{result=hit\|miss}`, `cache.errors`, `cache.short_circuited` | Cache effectiveness and Valkey health |
 | `outbox_pending_messages`, `outbox_oldest_pending_age_seconds`, `outbox_failed_messages` | Event backlog; alert when `failed > 0` |
 | `outbox.publish` | Broker send latency and outcome |
+| `customs.report.outcomes{outcome=generated\|already_generated}` | Report runs; any `already_generated` means two runs reached one period |
 | `resilience4j_circuitbreaker_*` | Breaker state and calls |
 | `http.server.requests` | HTTP latency histogram |
 | `krakend_*` | Gateway latency (from KrakenD's own exporter) |
@@ -329,10 +368,11 @@ The tests were written first (TDD), and each layer is tested in isolation:
 | Acceptance | End-to-end behaviour through the real HTTP stack | **Karate** BDD scenarios, real Keycloak tokens |
 | Outbox | POST → PostgreSQL → Kafka record | Testcontainers Kafka |
 | Gateway | Edge 401/403, routing, 429, CORS | The committed KrakenD config running in a container |
+| Scheduled jobs | Duplicate and overlapping runs across instances, and their fixes | Simulated instances over a real `shedlock` table |
 | Architecture | Layer rules | ArchUnit |
 | Configuration | Production YAML binds to real types | Binder test |
 
-`./gradlew check` runs **109 tests** and fails if any module's line coverage drops below 80%.
+`./gradlew check` runs **123 tests** and fails if any module's line coverage drops below 80%.
 
 ---
 
@@ -349,6 +389,7 @@ There is a single [`application.yml`](bootstrap/src/main/resources/application.y
 | `spring.kafka.*`, `codehunters.outbox.*` | Broker connection and outbox tuning (durations) |
 | `spring.security.oauth2.resourceserver.jwt.*`, `security.keycloak.*` | Token validation and role mapping |
 | `resilience4j.circuitbreaker.instances.valkey.*` | Breaker thresholds |
+| `jobs.customs-report.*` | Cron (`-` disables it), lock name and lock windows |
 | `management.*` | Actuator, OTLP endpoints, tracing sampling |
 
 Profiles: the default profile is for local runs; `prod` switches to JSON logs and disables Swagger.
@@ -486,6 +527,7 @@ Next on the roadmap:
 | [0004](docs/adr/0004-keycloak-resource-server-behind-krakend.md) | Keycloak tokens validated at the edge and by the service |
 | [0005](docs/adr/0005-transactional-outbox-with-codehunters-sdk-on-kafka.md) | Transactional outbox on Kafka through the event-messaging SDK |
 | [0006](docs/adr/0006-fail-open-valkey-cache-with-circuit-breaker.md) | Fail-open Valkey cache behind a circuit breaker |
+| [0007](docs/adr/0007-shedlock-for-scheduled-jobs-plus-idempotent-work.md) | Scheduled jobs under ShedLock, with idempotent work per period |
 
 ---
 

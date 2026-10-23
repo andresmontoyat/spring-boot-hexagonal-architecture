@@ -61,4 +61,9 @@ public final class InMemoryCustomRepository implements CustomRepositoryPort {
   public boolean deleteById(CustomId id) {
     return store.remove(id) != null;
   }
+
+  @Override
+  public long count() {
+    return store.size();
+  }
 }
